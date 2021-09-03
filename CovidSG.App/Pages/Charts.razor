@@ -1,0 +1,168 @@
+﻿@page "/Charts"
+@inject IJSRuntime JSRuntime
+@inject ISnackbar Snackbar
+@inject HttpClient HttpClient
+    <MudContainer Class="ma-0 pa-0">
+        <MudCard Elevation="1" Class="ma-0 ml-4 mr-4 mb-3">
+            <MudCardContent Class="d-flex justify-space-between">
+                <div>
+                    <MudText Typo="Typo.h5" Color="Color.Secondary">@last.ToString("dd MMMM yyyy")</MudText>
+                    <MudText Typo="Typo.body1" Color="Color.Primary">Active clusters Cases till date</MudText>
+                </div>
+                <MudText Typo="Typo.h3" Color="Color.Primary">@ClusterCases</MudText>
+            </MudCardContent>
+            <MudPaper Elevation="0" Class="mt-n10 d-flex justify-space-between align-center">
+                <RadzenChart style="height:130px; margin:0; padding:0;">
+                    <RadzenBarSeries Data="@dataToday" Title="Count" CategoryProperty="Name" ValueProperty="Count" LineType="LineType.Dashed" />
+                    <RadzenLegend Visible="false" />
+                </RadzenChart>
+                <MudText Class="mr-4" Typo="Typo.h3" Color="Color.Info">@ReportTotal</MudText>
+            </MudPaper>
+        </MudCard>
+        <MudCard Elevation="5" Class="ma-0 ml-4 mr-4 mb-3">
+            <RadzenChart>
+                <RadzenDonutSeries Data="@dataCluster" Title="Count" CategoryProperty="Name" ValueProperty="Count">
+                    <TitleTemplate>
+                        <div class="rz-donut-content">
+                            <MudText Color="Color.Secondary">Active Custers</MudText>
+                            <MudText Typo="Typo.h6" Color="Color.Primary">@ClusterCount</MudText>
+                        </div>
+                    </TitleTemplate>
+                </RadzenDonutSeries>
+                <RadzenLegend Visible="false" />
+            </RadzenChart>
+        </MudCard>
+        <MudCard Elevation="5" Class="ma-0 ml-4 mr-4">
+            <RadzenChart>
+                <RadzenDonutSeries Data="@dataLocation" Title="Total" CategoryProperty="Name" ValueProperty="Count">
+                    <TitleTemplate>
+                        <div class="rz-donut-content">
+                            <MudText Color="Color.Secondary">Locations</MudText>
+                            <MudText Typo="Typo.h6" Color="Color.Primary">@LocationCount</MudText>
+                        </div>
+                    </TitleTemplate>
+                </RadzenDonutSeries>
+                <RadzenLegend Visible="false" />
+            </RadzenChart>
+        </MudCard>
+    </MudContainer>
+
+
+@code {
+    DateTime last = DateTime.Now;
+    int ClusterCases = 0;
+    int ClusterCount = 0;
+    int LocationCount = 0;
+    int ReportTotal = 0;
+    List<CaseData> dataToday = new List<CaseData>();
+    List<CaseData> dataCluster = new List<CaseData>();
+    List<CaseData> dataLocation = new List<CaseData>();
+    List<CovidDaily> azureDaily = new List<CovidDaily>();
+    ICollection<DailyAzureModel> DailyGetModels = new List<DailyAzureModel>();
+
+    private void myAlert(string message, Severity type)
+    {
+        Snackbar.Clear();
+        Snackbar.Configuration.ShowTransitionDuration = 50;
+        Snackbar.Configuration.PositionClass = Defaults.Classes.Position.TopCenter;
+        Snackbar.Configuration.SnackbarVariant = Variant.Filled;
+        Snackbar.Add(message, type);
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            //Get daily reports
+            //var httpResponse = await HttpClient.GetAsync("http://localhost:7071/api/daily");
+            var httpResponse = await HttpClient.GetAsync("https://tableapi.azurewebsites.net/api/daily");
+            if (httpResponse.IsSuccessStatusCode)
+            {
+                DailyGetModels = await httpResponse.Content.ReadFromJsonAsync<ICollection<DailyAzureModel>>();
+                doCasesData();
+            }
+            else
+                throw new HttpRequestException($"Azure {httpResponse.StatusCode}: {httpResponse.Content.ReadAsStringAsync().GetAwaiter().GetResult()}");
+
+        }
+        catch (HttpRequestException)
+        {
+            throw;
+        }
+    }
+
+    private void doCasesData()
+    {
+        last = DateTime.Parse(DailyGetModels.First().Date);
+        dataToday = new List<CaseData>();
+        ICollection<DailyAzureModel> records = DailyGetModels.Where(t => t.Type == "Daily").ToList();
+        foreach (var r in records)
+        {
+            if (r.Name == "Total")
+                ReportTotal = r.Count;
+            else if (r.Name == "ClusterCases")
+                ClusterCases = r.Count;
+            else if (r.Name == "Imported")
+            {
+                CaseData d = new CaseData
+                {
+                    Name = r.Name,
+                    Count = r.Count
+                };
+                dataToday.Add(d);
+            }
+            else if (r.Name == "Linked")
+            {
+                CaseData d = new CaseData
+                {
+                    Name = r.Name,
+                    Count = r.Count
+                };
+                dataToday.Add(d);
+            }
+            else if (r.Name == "Unlinked")
+            {
+                CaseData d = new CaseData
+                {
+                    Name = r.Name,
+                    Count = r.Count
+                };
+                dataToday.Add(d);
+            }
+        }
+
+        records = DailyGetModels.Where(t => t.Type == "Cluster").ToList();
+        dataCluster = new List<CaseData>();
+        foreach (var r in records)
+        {
+            if (r.Name == "Count")
+                ClusterCount = r.Count;
+            else
+            {
+                CaseData d = new CaseData
+                {
+                    Name = r.Name,
+                    Count = r.Count
+                };
+                dataCluster.Add(d);
+            }
+        }
+
+        records = DailyGetModels.Where(t => t.Type == "Location").ToList();
+        dataLocation = new List<CaseData>();
+        foreach (var r in records)
+        {
+            if (r.Name == "Count")
+                LocationCount = r.Count;
+            else
+            {
+                CaseData d = new CaseData
+                {
+                    Name = r.Name,
+                    Count = r.Count
+                };
+                dataLocation.Add(d);
+            }
+        }
+    }
+}

@@ -1,0 +1,58 @@
+﻿@inherits LayoutComponentBase
+@inject IJSRuntime JSRuntime
+@inject NavigationManager Navigation
+
+<MudThemeProvider />
+<MudSnackbarProvider />
+<MudDialogProvider />
+
+<MudLayout>
+    <MudAppBar Elevation="1" Color="Color.Primary">
+        <MudIconButton Icon="@Icons.Material.Filled.Menu" Color="Color.Inherit" Edge="Edge.Start" OnClick="@((e) => DrawerToggle())" />
+        <MudText Typo="Typo.h5">@Title</MudText>
+        <MudAvatar Class="ml-1" Size="Size.Small" Color="Color.Primary" Image="/icon-512.png" />
+        <MudHidden Breakpoint="Breakpoint.SmAndUp">
+            <MudFab Icon="@Icons.Material.Filled.Map" Class="ml-5" Size="Size.Small" Color="Color.Info" OnClick="@((e) => Navigation.NavigateTo("map"))"></MudFab>
+            <MudFab Icon="@Icons.Material.Filled.BarChart" Class="ml-5" Size="Size.Small" Color="Color.Info" OnClick="@((e) => Navigation.NavigateTo("charts"))"></MudFab>
+        </MudHidden>
+    </MudAppBar>
+    <MudDrawer Color="Color.Surface" @bind-Open="@_drawerOpen" ClipMode="DrawerClipMode.Always" Elevation="2" Variant="@DrawerVariant.Temporary">
+        <MudDrawerHeader>
+            <MudText Typo="Typo.h6">@Title</MudText>
+        </MudDrawerHeader>
+        <NavMenu />
+    </MudDrawer>
+    @*<MudMainContent Style="@($"background:{Colors.DeepPurple.Lighten5};")">*@
+    <MudMainContent Class="mud-height-full">
+        <div Style="@($" height:{(Height - 100).ToString()}px;")">
+            @Body
+        </div>
+    </MudMainContent>
+</MudLayout>
+
+@code {    
+    public class WindowDimension
+    {
+        public int Width { get; set; }
+        public int Height { get; set; }
+    }
+
+    public int Height { get; set; }
+    public int Width { get; set; }
+
+    bool _drawerOpen = false;
+    string Title = "CovidSG";
+
+    protected override async Task OnInitializedAsync()
+    {
+        var dimension = await JSRuntime.InvokeAsync<WindowDimension>
+            ("getDimensions");
+        Height = dimension.Height;
+        Width = dimension.Width;
+    }
+
+    void DrawerToggle()
+    {
+        _drawerOpen = !_drawerOpen;
+    }
+}

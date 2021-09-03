@@ -1,0 +1,78 @@
+﻿@page "/Map"
+@inject IJSRuntime JSRuntime
+@inject ISnackbar Snackbar
+@inject HttpClient HttpClient
+
+<MudPaper Elevation="0" Class="ma-0 pa-0" id="@mapid" Style="height:850px">
+    show map
+</MudPaper>
+
+@code {
+    public class WindowDimension
+    {
+        public int Width { get; set; }
+        public int Height { get; set; }
+    }
+
+    public int Height { get; set; }
+    public int Width { get; set; }
+    //DateTime StartDate = new DateTime(2021, 6, 29);
+    string mapid = "mapid";
+
+    ICollection<LocationAzureModel>
+    LocationGetModels = new List<LocationAzureModel>();
+
+    private void myAlert(string message, Severity type)
+    {
+        Snackbar.Clear();
+        Snackbar.Configuration.ShowTransitionDuration = 50;
+        Snackbar.Configuration.PositionClass = Defaults.Classes.Position.TopCenter;
+        Snackbar.Configuration.SnackbarVariant = Variant.Filled;
+        Snackbar.Add(message, type);
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            var dimension = await JSRuntime.InvokeAsync<WindowDimension>
+                ("getDimensions");
+            Height = dimension.Height;
+            Width = dimension.Width;
+
+            //Get Locations
+            //var httpResponse = await HttpClient.GetAsync("http://localhost:7071/api/locations");
+            var httpResponse = await HttpClient.GetAsync("https://tableapi.azurewebsites.net/api/locations");
+            if (httpResponse.IsSuccessStatusCode)
+            {
+                LocationGetModels = await httpResponse.Content.ReadFromJsonAsync<ICollection<LocationAzureModel>>();
+                await doLocations();
+            }
+            else
+                throw new HttpRequestException($"Azure {httpResponse.StatusCode}: {httpResponse.Content.ReadAsStringAsync().GetAwaiter().GetResult()}");
+        }
+        catch (HttpRequestException)
+        {
+            throw;
+        }
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+            await JSRuntime.InvokeVoidAsync("showMap", mapid, 12);
+    }
+
+    private async Task doLocations()
+    {
+        foreach (var location in LocationGetModels)
+        {
+            string s = location.Text;
+            await JSRuntime.InvokeVoidAsync(
+                "addLocation",
+                double.Parse(location.Latitude),
+                double.Parse(location.Longitude),
+                s);
+        }
+    }
+}
