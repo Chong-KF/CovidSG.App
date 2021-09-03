@@ -1,6 +1,6 @@
 # CovidSG.App
 
-This is part of my final project for SGUnited full stack course
+This is part of my final project for SGUnited full stack course  
 Main app video https://youtu.be/JvD7AyzX0GA
 
 ## Demo
